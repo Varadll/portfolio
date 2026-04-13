@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { adminDb } from "./admin-client";
 import type {
   Project,
   Experience,
@@ -63,10 +64,7 @@ export async function fetchSettings(): Promise<SiteSettings> {
 }
 
 export async function updateSetting(key: string, value: unknown) {
-  const { error } = await supabase
-    .from("site_settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  if (error) throw error;
+  await adminDb.upsert("site_settings", { key, value, updated_at: new Date().toISOString() }, "key");
 }
 
 // ── Projects ─────────────────────────────────────────────────────────────────
@@ -128,26 +126,15 @@ export async function fetchProjectBySlug(
 export async function createProject(
   project: Omit<Project, "id" | "created_at" | "updated_at">
 ) {
-  const { data, error } = await supabase
-    .from("projects")
-    .insert(project)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Project;
+  return await adminDb.insert("projects", project) as Project;
 }
 
 export async function updateProject(id: string, updates: Partial<Project>) {
-  const { error } = await supabase
-    .from("projects")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.update("projects", id, { ...updates, updated_at: new Date().toISOString() });
 }
 
 export async function deleteProject(id: string) {
-  const { error } = await supabase.from("projects").delete().eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("projects", id);
 }
 
 // ── Experience ───────────────────────────────────────────────────────────────
@@ -169,29 +156,18 @@ export async function fetchExperience(): Promise<Experience[]> {
 export async function createExperience(
   exp: Omit<Experience, "id" | "created_at">
 ) {
-  const { data, error } = await supabase
-    .from("experience")
-    .insert(exp)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Experience;
+  return await adminDb.insert("experience", exp) as Experience;
 }
 
 export async function updateExperience(
   id: string,
   updates: Partial<Experience>
 ) {
-  const { error } = await supabase
-    .from("experience")
-    .update(updates)
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.update("experience", id, updates);
 }
 
 export async function deleteExperience(id: string) {
-  const { error } = await supabase.from("experience").delete().eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("experience", id);
 }
 
 // ── Education ────────────────────────────────────────────────────────────────
@@ -213,29 +189,18 @@ export async function fetchEducation(): Promise<Education[]> {
 export async function createEducation(
   edu: Omit<Education, "id" | "created_at">
 ) {
-  const { data, error } = await supabase
-    .from("education")
-    .insert(edu)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Education;
+  return await adminDb.insert("education", edu) as Education;
 }
 
 export async function updateEducation(
   id: string,
   updates: Partial<Education>
 ) {
-  const { error } = await supabase
-    .from("education")
-    .update(updates)
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.update("education", id, updates);
 }
 
 export async function deleteEducation(id: string) {
-  const { error } = await supabase.from("education").delete().eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("education", id);
 }
 
 // ── Certifications ───────────────────────────────────────────────────────────
@@ -257,32 +222,18 @@ export async function fetchCertifications(): Promise<Certification[]> {
 export async function createCertification(
   cert: Omit<Certification, "id" | "created_at">
 ) {
-  const { data, error } = await supabase
-    .from("certifications")
-    .insert(cert)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Certification;
+  return await adminDb.insert("certifications", cert) as Certification;
 }
 
 export async function updateCertification(
   id: string,
   updates: Partial<Certification>
 ) {
-  const { error } = await supabase
-    .from("certifications")
-    .update(updates)
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.update("certifications", id, updates);
 }
 
 export async function deleteCertification(id: string) {
-  const { error } = await supabase
-    .from("certifications")
-    .delete()
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("certifications", id);
 }
 
 // ── Skills ───────────────────────────────────────────────────────────────────
@@ -302,23 +253,15 @@ export async function fetchSkills(): Promise<Skill[]> {
 }
 
 export async function createSkill(skill: Omit<Skill, "id" | "created_at">) {
-  const { data, error } = await supabase
-    .from("skills")
-    .insert(skill)
-    .select()
-    .single();
-  if (error) throw error;
-  return data as Skill;
+  return await adminDb.insert("skills", skill) as Skill;
 }
 
 export async function updateSkill(id: string, updates: Partial<Skill>) {
-  const { error } = await supabase.from("skills").update(updates).eq("id", id);
-  if (error) throw error;
+  await adminDb.update("skills", id, updates);
 }
 
 export async function deleteSkill(id: string) {
-  const { error } = await supabase.from("skills").delete().eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("skills", id);
 }
 
 // ── Contact Messages ─────────────────────────────────────────────────────────
@@ -341,17 +284,9 @@ export async function submitContactMessage(
 }
 
 export async function markMessageRead(id: string) {
-  const { error } = await supabase
-    .from("contact_messages")
-    .update({ read: true })
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.update("contact_messages", id, { read: true });
 }
 
 export async function deleteContactMessage(id: string) {
-  const { error } = await supabase
-    .from("contact_messages")
-    .delete()
-    .eq("id", id);
-  if (error) throw error;
+  await adminDb.remove("contact_messages", id);
 }
