@@ -1,6 +1,7 @@
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
 import Skills from "@/components/sections/Skills";
+import Certifications from "@/components/sections/Certifications";
 import Projects from "@/components/sections/Projects";
 import Experience from "@/components/sections/Experience";
 import Education from "@/components/sections/Education";
@@ -32,9 +33,10 @@ export default async function Home() {
       <Hero settings={settings} />
       <About settings={settings} />
       <Skills skills={skills} />
+      <Certifications certifications={certifications} />
       <Projects projects={projects} />
       <Experience experience={experience} />
-      <Education education={education} certifications={certifications} />
+      <Education education={education} />
       <Contact settings={settings} />
     </>
   );
