@@ -55,7 +55,7 @@ const EMPTY_FORM: FormData = {
   gallery_urls: "",
   live_url: "",
   github_url: "",
-  featured: false,
+  featured: true,
   status: "published",
   sort_order: 0,
 };
