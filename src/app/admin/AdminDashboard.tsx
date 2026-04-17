@@ -39,8 +39,11 @@ export default function AdminDashboard() {
   const { signOut } = useAuth();
 
   const revalidate = async () => {
-    await fetch("/api/revalidate?path=/", { method: "POST" });
-    await fetch("/api/revalidate?path=/projects", { method: "POST" });
+    for (const path of ["/", "/projects"]) {
+      await fetch(`/api/revalidate?path=${encodeURIComponent(path)}`, {
+        method: "POST",
+      });
+    }
   };
 
   return (

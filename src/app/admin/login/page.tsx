@@ -18,18 +18,34 @@ export default function AdminLogin() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const timeout = new Promise<{ error: { message: string } }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              error: {
+                message:
+                  "Sign-in timed out — check your connection or Supabase status",
+              },
+            }),
+          10_000
+        )
+      );
 
-    if (error) {
-      setError(error.message);
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeout,
+      ]);
+
+      if ("error" in result && result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      router.replace("/admin");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/admin");
   };
 
   return (
