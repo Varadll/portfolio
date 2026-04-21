@@ -1,8 +1,10 @@
 // Client-side helper to call the admin CRUD API route
 // This bypasses RLS by going through the service role key on the server
 
+import { supabase } from "@/lib/supabase";
+
 const ADMIN_FETCH_TIMEOUT_MS = 15_000;
-const ADMIN_UPLOAD_TIMEOUT_MS = 30_000;
+const UPLOAD_BUCKET = "portfolio-images";
 
 async function adminFetch(body: Record<string, unknown>) {
   const controller = new AbortController();
@@ -29,44 +31,38 @@ async function adminFetch(body: Record<string, unknown>) {
   }
 }
 
+function sanitizePrefix(prefix: string): string {
+  const cleaned = prefix.replace(/[^a-zA-Z0-9_-]/g, "");
+  return cleaned || "upload";
+}
+
+function sanitizeExt(name: string): string {
+  const ext = name.split(".").pop() ?? "";
+  return ext.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+}
+
 /**
- * Upload a file to the portfolio-images Supabase bucket via the server.
- * Server route uses the service-role key, so storage RLS doesn't block us.
+ * Upload a file directly from the browser to the portfolio-images Supabase
+ * bucket. Requires an RLS INSERT policy on storage.objects that allows
+ * authenticated users to write to this bucket (see supabase-migrations/
+ * 004-storage-insert-policy.sql). This avoids Netlify Function payload limits.
  * @param file Browser File from an <input type="file" /> change event.
  * @param prefix Short tag for the filename (e.g. "project", "cert", "logo",
  *               "profile", "resume"). Non-alphanumeric chars are stripped.
  * @returns Public URL of the uploaded asset.
- * @throws Error with server-side message if upload fails.
+ * @throws Error with Supabase error message if upload fails.
  */
 export async function uploadAdmin(file: File, prefix: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    ADMIN_UPLOAD_TIMEOUT_MS
-  );
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("prefix", prefix);
-
-    const res = await fetch("/api/admin/upload", {
-      method: "POST",
-      body: formData,
-      signal: controller.signal,
+  const fileName = `${sanitizePrefix(prefix)}-${Date.now()}.${sanitizeExt(file.name)}`;
+  const { error } = await supabase.storage
+    .from(UPLOAD_BUCKET)
+    .upload(fileName, file, {
+      contentType: file.type || undefined,
+      upsert: false,
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Upload failed");
-    return json.publicUrl as string;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error(
-        "Upload timed out after 30s — check file size and server logs"
-      );
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from(UPLOAD_BUCKET).getPublicUrl(fileName);
+  return data.publicUrl;
 }
 
 export const adminDb = {
