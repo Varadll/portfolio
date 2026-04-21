@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, X, Save, Loader2, Upload } from "lucide-react";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
-import { supabase } from "@/lib/supabase";
+import { uploadAdmin } from "@/lib/admin-client";
 import {
   fetchCertifications,
   createCertification,
@@ -48,19 +48,14 @@ export default function CertificationManager({ onMutate }: Props) {
   const handleImageUpload = async (file: File) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const fileName = `cert-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("portfolio-images")
-        .upload(fileName, file);
-      if (error) throw error;
-      const { data: urlData } = supabase.storage
-        .from("portfolio-images")
-        .getPublicUrl(fileName);
-      setForm((f) => ({ ...f, badge_image_url: urlData.publicUrl }));
-    } catch (e) {
-      console.error(e);
-      alert("Failed to upload image");
+      const publicUrl = await uploadAdmin(file, "cert");
+      setForm((f) => ({ ...f, badge_image_url: publicUrl }));
+    } catch (err) {
+      console.error("[CertificationManager] badge upload failed", err);
+      alert(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
     setUploading(false);
   };

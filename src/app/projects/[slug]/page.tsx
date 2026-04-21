@@ -6,6 +6,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Quote,
 } from "lucide-react";
 import GithubIcon from "@/components/ui/GithubIcon";
 import Container from "@/components/ui/Container";
@@ -126,6 +127,83 @@ export default async function ProjectPage({
             dangerouslySetInnerHTML={{ __html: project.description_html }}
           />
         </div>
+
+        {/* Client + testimonial */}
+        {(project.client_name || project.testimonial_quote) && (
+          <div className="mt-12 max-w-3xl rounded-xl border border-border bg-card p-6 sm:p-8">
+            {project.client_name && (
+              <div className="flex items-center gap-4 mb-4">
+                {project.client_logo_url ? (
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-white">
+                    <Image
+                      src={project.client_logo_url}
+                      alt={`${project.client_name} logo`}
+                      fill
+                      className="object-contain p-1"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-semibold text-primary">
+                    {project.client_name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted">
+                    Client
+                  </p>
+                  <p className="text-base font-semibold text-primary">
+                    {project.client_name}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {project.testimonial_quote && (
+              <figure className="mt-2">
+                <Quote
+                  size={24}
+                  className="text-accent mb-2"
+                  aria-hidden="true"
+                />
+                <blockquote className="text-lg italic text-primary leading-relaxed">
+                  “{project.testimonial_quote}”
+                </blockquote>
+                {(project.testimonial_author ||
+                  project.testimonial_author_role) && (
+                  <figcaption className="mt-3 text-sm text-muted">
+                    {project.testimonial_author && (
+                      <span className="font-medium text-primary">
+                        {project.testimonial_author}
+                      </span>
+                    )}
+                    {project.testimonial_author &&
+                      project.testimonial_author_role && (
+                        <span> — </span>
+                      )}
+                    {project.testimonial_author_role && (
+                      <span>{project.testimonial_author_role}</span>
+                    )}
+                  </figcaption>
+                )}
+              </figure>
+            )}
+          </div>
+        )}
+
+        {/* Acknowledgement */}
+        {project.acknowledgement_html && (
+          <div className="mt-8 max-w-3xl">
+            <h2 className="text-xl font-semibold text-primary mb-3">
+              Acknowledgement
+            </h2>
+            <div
+              className="prose dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: project.acknowledgement_html,
+              }}
+            />
+          </div>
+        )}
 
         {/* Gallery */}
         {project.gallery_urls && project.gallery_urls.length > 0 && (

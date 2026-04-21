@@ -1,6 +1,5 @@
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
-import Skills from "@/components/sections/Skills";
 import Certifications from "@/components/sections/Certifications";
 import Projects from "@/components/sections/Projects";
 import Experience from "@/components/sections/Experience";
@@ -9,7 +8,6 @@ import Contact from "@/components/sections/Contact";
 import {
   fetchSettings,
   fetchFeaturedProjects,
-  fetchSkills,
   fetchExperience,
   fetchEducation,
   fetchCertifications,
@@ -18,11 +16,10 @@ import {
 export const revalidate = 3600; // Revalidate every hour
 
 export default async function Home() {
-  const [settings, projects, skills, experience, education, certifications] =
+  const [settings, projects, experience, education, certifications] =
     await Promise.all([
       fetchSettings(),
       fetchFeaturedProjects(),
-      fetchSkills(),
       fetchExperience(),
       fetchEducation(),
       fetchCertifications(),
@@ -32,9 +29,14 @@ export default async function Home() {
     <>
       <Hero settings={settings} />
       <About settings={settings} />
-      <Skills skills={skills} />
-      <Certifications certifications={certifications} />
-      <Projects projects={projects} />
+      {settings.home_sections.show_certifications && (
+        <Certifications certifications={certifications} />
+      )}
+      <Projects
+        projects={projects}
+        heading={settings.projects_section.heading}
+        subtitle={settings.projects_section.subtitle}
+      />
       <Experience experience={experience} />
       <Education education={education} />
       <Contact settings={settings} />

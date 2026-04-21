@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Save, Loader2, Upload } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { fetchSettings, updateSetting } from "@/lib/supabase-portfolio";
-import { supabase } from "@/lib/supabase";
+import { uploadAdmin } from "@/lib/admin-client";
 import type { SiteSettings } from "@/types/portfolio";
 
 interface Props {
@@ -42,6 +42,8 @@ export default function SettingsManager({ onMutate }: Props) {
       if (settings.resume_url) {
         await updateSetting("resume_url", settings.resume_url);
       }
+      await updateSetting("home_sections", settings.home_sections);
+      await updateSetting("projects_section", settings.projects_section);
       await onMutate();
       setMessage("Settings saved!");
       setTimeout(() => setMessage(""), 3000);
@@ -55,27 +57,19 @@ export default function SettingsManager({ onMutate }: Props) {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
-
-    const ext = file.name.split(".").pop();
-    const fileName = `profile-${Date.now()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("portfolio-images")
-      .upload(fileName, file);
-
-    if (error) {
-      alert("Upload failed: " + error.message);
-      return;
+    try {
+      const publicUrl = await uploadAdmin(file, "profile");
+      setSettings({
+        ...settings,
+        hero: { ...settings.hero, photo_url: publicUrl },
+      });
+    } catch (err) {
+      console.error("[SettingsManager] photo upload failed", err);
+      alert(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("portfolio-images").getPublicUrl(fileName);
-
-    setSettings({
-      ...settings,
-      hero: { ...settings.hero, photo_url: publicUrl },
-    });
   };
 
   const handleResumeUpload = async (
@@ -83,23 +77,16 @@ export default function SettingsManager({ onMutate }: Props) {
   ) => {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
-
-    const fileName = `resume-${Date.now()}.pdf`;
-
-    const { error } = await supabase.storage
-      .from("portfolio-images")
-      .upload(fileName, file);
-
-    if (error) {
-      alert("Upload failed: " + error.message);
-      return;
+    try {
+      const publicUrl = await uploadAdmin(file, "resume");
+      setSettings({ ...settings, resume_url: publicUrl });
+    } catch (err) {
+      console.error("[SettingsManager] resume upload failed", err);
+      alert(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("portfolio-images").getPublicUrl(fileName);
-
-    setSettings({ ...settings, resume_url: publicUrl });
   };
 
   if (loading || !settings) {
@@ -293,6 +280,80 @@ export default function SettingsManager({ onMutate }: Props) {
               View current resume
             </a>
           )}
+        </div>
+      </div>
+
+      {/* Home Sections */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
+          Home Sections
+        </h3>
+        <p className="text-xs text-muted">
+          Toggle which sections appear on the home page.
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.home_sections.show_certifications}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  home_sections: {
+                    ...settings.home_sections,
+                    show_certifications: e.target.checked,
+                  },
+                })
+              }
+              className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+            />
+            <span className="text-sm text-primary">
+              Show Certifications on home
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* Projects Section copy */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
+          Projects Section
+        </h3>
+        <div>
+          <label className="block text-sm font-medium text-primary mb-1">
+            Heading
+          </label>
+          <input
+            value={settings.projects_section.heading}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                projects_section: {
+                  ...settings.projects_section,
+                  heading: e.target.value,
+                },
+              })
+            }
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-primary mb-1">
+            Subtitle
+          </label>
+          <input
+            value={settings.projects_section.subtitle}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                projects_section: {
+                  ...settings.projects_section,
+                  subtitle: e.target.value,
+                },
+              })
+            }
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+          />
         </div>
       </div>
 

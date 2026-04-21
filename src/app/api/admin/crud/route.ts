@@ -32,17 +32,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
     }
 
-    const admin = getSupabaseAdmin();
-
-    const { data: profile, error: profileError } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profileError || profile?.role !== "admin") {
-      console.error("[admin/crud] forbidden", user.email, profileError);
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) {
+      console.error("[admin/crud] ADMIN_EMAIL env var not set");
+      return NextResponse.json(
+        { error: "Server misconfigured: ADMIN_EMAIL not set" },
+        { status: 500 }
+      );
+    }
+    if (user.email?.toLowerCase() !== adminEmail.toLowerCase()) {
+      console.error("[admin/crud] forbidden", user.email);
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const admin = getSupabaseAdmin();
 
     const { table, operation, data, id } = await request.json();
 

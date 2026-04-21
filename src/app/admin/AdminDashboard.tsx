@@ -6,7 +6,6 @@ import {
   Briefcase,
   GraduationCap,
   Award,
-  Wrench,
   Settings,
   MessageSquare,
   LogOut,
@@ -18,7 +17,6 @@ import ProjectManager from "@/components/admin/ProjectManager";
 import ExperienceManager from "@/components/admin/ExperienceManager";
 import EducationManager from "@/components/admin/EducationManager";
 import CertificationManager from "@/components/admin/CertificationManager";
-import SkillsManager from "@/components/admin/SkillsManager";
 import SettingsManager from "@/components/admin/SettingsManager";
 import MessagesManager from "@/components/admin/MessagesManager";
 
@@ -27,7 +25,6 @@ const TABS = [
   { id: "experience", label: "Experience", icon: Briefcase },
   { id: "education", label: "Education", icon: GraduationCap },
   { id: "certifications", label: "Certs", icon: Award },
-  { id: "skills", label: "Skills", icon: Wrench },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "messages", label: "Messages", icon: MessageSquare },
 ] as const;
@@ -95,9 +92,6 @@ export default function AdminDashboard() {
         )}
         {activeTab === "certifications" && (
           <CertificationManager onMutate={revalidate} />
-        )}
-        {activeTab === "skills" && (
-          <SkillsManager onMutate={revalidate} />
         )}
         {activeTab === "settings" && (
           <SettingsManager onMutate={revalidate} />

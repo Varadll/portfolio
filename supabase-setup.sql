@@ -18,6 +18,13 @@ create table projects (
   featured boolean default false,
   sort_order integer default 0,
   status text default 'draft' check (status in ('draft', 'published')),
+  completion_status text default 'completed' check (completion_status in ('completed', 'in_progress')),
+  client_name text,
+  client_logo_url text,
+  testimonial_quote text,
+  testimonial_author text,
+  testimonial_author_role text,
+  acknowledgement_html text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -62,18 +69,7 @@ create table certifications (
   created_at timestamptz default now()
 );
 
--- 5. Skills
-create table skills (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  category text default 'other' check (category in ('frontend', 'backend', 'database', 'tools', 'languages', 'other')),
-  icon_name text,
-  proficiency integer default 50 check (proficiency >= 0 and proficiency <= 100),
-  sort_order integer default 0,
-  created_at timestamptz default now()
-);
-
--- 6. Contact Messages
+-- 5. Contact Messages
 create table contact_messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -84,7 +80,7 @@ create table contact_messages (
   created_at timestamptz default now()
 );
 
--- 7. Site Settings (key-value store for hero, about, social links, etc.)
+-- 6. Site Settings (key-value store for hero, about, social links, etc.)
 create table site_settings (
   key text primary key,
   value jsonb not null default '{}',
@@ -102,7 +98,6 @@ alter table projects enable row level security;
 alter table experience enable row level security;
 alter table education enable row level security;
 alter table certifications enable row level security;
-alter table skills enable row level security;
 alter table contact_messages enable row level security;
 alter table site_settings enable row level security;
 
@@ -118,9 +113,6 @@ create policy "Public can read education"
 
 create policy "Public can read certifications"
   on certifications for select using (true);
-
-create policy "Public can read skills"
-  on skills for select using (true);
 
 create policy "Public can read site settings"
   on site_settings for select using (true);

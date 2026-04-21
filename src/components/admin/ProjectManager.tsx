@@ -21,7 +21,7 @@ import {
   updateProject,
   deleteProject,
 } from "@/lib/supabase-portfolio";
-import { supabase } from "@/lib/supabase";
+import { uploadAdmin } from "@/lib/admin-client";
 import type { Project } from "@/types/portfolio";
 
 interface Props {
@@ -42,7 +42,14 @@ interface FormData {
   github_url: string;
   featured: boolean;
   status: "draft" | "published";
+  completion_status: "completed" | "in_progress";
   sort_order: number;
+  client_name: string;
+  client_logo_url: string;
+  testimonial_quote: string;
+  testimonial_author: string;
+  testimonial_author_role: string;
+  acknowledgement_html: string;
 }
 
 const EMPTY_FORM: FormData = {
@@ -57,7 +64,14 @@ const EMPTY_FORM: FormData = {
   github_url: "",
   featured: true,
   status: "published",
+  completion_status: "completed",
   sort_order: 0,
+  client_name: "",
+  client_logo_url: "",
+  testimonial_quote: "",
+  testimonial_author: "",
+  testimonial_author_role: "",
+  acknowledgement_html: "",
 };
 
 export default function ProjectManager({ onMutate }: Props) {
@@ -103,7 +117,14 @@ export default function ProjectManager({ onMutate }: Props) {
       github_url: p.github_url || "",
       featured: p.featured,
       status: p.status,
+      completion_status: p.completion_status || "completed",
       sort_order: p.sort_order,
+      client_name: p.client_name || "",
+      client_logo_url: p.client_logo_url || "",
+      testimonial_quote: p.testimonial_quote || "",
+      testimonial_author: p.testimonial_author || "",
+      testimonial_author_role: p.testimonial_author_role || "",
+      acknowledgement_html: p.acknowledgement_html || "",
     });
     setViewMode("form");
   };
@@ -129,7 +150,14 @@ export default function ProjectManager({ onMutate }: Props) {
         github_url: form.github_url || null,
         featured: form.featured,
         status: form.status,
+        completion_status: form.completion_status,
         sort_order: form.sort_order,
+        client_name: form.client_name || null,
+        client_logo_url: form.client_logo_url || null,
+        testimonial_quote: form.testimonial_quote || null,
+        testimonial_author: form.testimonial_author || null,
+        testimonial_author_role: form.testimonial_author_role || null,
+        acknowledgement_html: form.acknowledgement_html || null,
       };
 
       if (editingId) {
@@ -162,24 +190,33 @@ export default function ProjectManager({ onMutate }: Props) {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const ext = file.name.split(".").pop();
-    const fileName = `project-${Date.now()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("portfolio-images")
-      .upload(fileName, file);
-
-    if (error) {
-      alert("Upload failed: " + error.message);
-      return;
+    try {
+      const publicUrl = await uploadAdmin(file, "project");
+      setForm((f) => ({ ...f, image_url: publicUrl }));
+    } catch (err) {
+      console.error("[ProjectManager] cover upload failed", err);
+      alert(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     }
+  };
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("portfolio-images").getPublicUrl(fileName);
-
-    setForm((f) => ({ ...f, image_url: publicUrl }));
+  const handleClientLogoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const publicUrl = await uploadAdmin(file, "client-logo");
+      setForm((f) => ({ ...f, client_logo_url: publicUrl }));
+    } catch (err) {
+      console.error("[ProjectManager] client logo upload failed", err);
+      alert(
+        "Upload failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
+    }
   };
 
   if (viewMode === "form") {
@@ -376,6 +413,164 @@ export default function ProjectManager({ onMutate }: Props) {
                 />
                 <span className="text-sm text-primary">Featured</span>
               </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-primary mb-1">
+              Completion Status
+            </label>
+            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({ ...f, completion_status: "completed" }))
+                }
+                className={cn(
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  form.completion_status === "completed"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "text-muted hover:text-primary"
+                )}
+              >
+                Completed
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({ ...f, completion_status: "in_progress" }))
+                }
+                className={cn(
+                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  form.completion_status === "in_progress"
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "text-muted hover:text-primary"
+                )}
+              >
+                In Development
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              Shown as a badge on project cards and the detail page.
+            </p>
+          </div>
+
+          <div className="pt-6 border-t border-border space-y-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
+              Client &amp; Testimonial
+            </h3>
+            <p className="text-xs text-muted">
+              Optional. Shown on the project detail page. Leave blank to hide.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Client Name
+                </label>
+                <input
+                  value={form.client_name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, client_name: e.target.value }))
+                  }
+                  placeholder="Acme Inc."
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Client Logo
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleClientLogoUpload}
+                    className="text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-secondary file:text-primary hover:file:bg-border"
+                  />
+                  {form.client_logo_url && (
+                    <div className="relative h-10 w-10 overflow-hidden rounded border border-border bg-white">
+                      <Image
+                        src={form.client_logo_url}
+                        alt="Client logo"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary mb-1">
+                Testimonial Quote
+              </label>
+              <textarea
+                rows={3}
+                value={form.testimonial_quote}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    testimonial_quote: e.target.value,
+                  }))
+                }
+                placeholder="Their work exceeded our expectations…"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Testimonial Author
+                </label>
+                <input
+                  value={form.testimonial_author}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      testimonial_author: e.target.value,
+                    }))
+                  }
+                  placeholder="Jane Doe"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Author Role
+                </label>
+                <input
+                  value={form.testimonial_author_role}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      testimonial_author_role: e.target.value,
+                    }))
+                  }
+                  placeholder="CEO, Acme Inc."
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary mb-1">
+                Acknowledgement (HTML)
+              </label>
+              <textarea
+                rows={4}
+                value={form.acknowledgement_html}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    acknowledgement_html: e.target.value,
+                  }))
+                }
+                placeholder="<p>Thanks to the team at … for…</p>"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary font-mono focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+              />
             </div>
           </div>
 
