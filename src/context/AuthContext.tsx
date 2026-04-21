@@ -29,6 +29,25 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// Admin role is determined purely by email (no DB roundtrip, can't hang).
+// Set NEXT_PUBLIC_ADMIN_EMAIL in .env.local and in Netlify env.
+function resolveRole(user: User | null): "admin" | null {
+  if (!user?.email) return null;
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  if (!adminEmail) {
+    // Fail closed — without config, nobody is admin.
+    // The corresponding server env var (ADMIN_EMAIL) would also be missing,
+    // so any admin API call would 500. This log makes the misconfig obvious.
+    if (typeof window !== "undefined") {
+      console.warn(
+        "[AuthContext] NEXT_PUBLIC_ADMIN_EMAIL not set — admin gate locked"
+      );
+    }
+    return null;
+  }
+  return user.email.toLowerCase() === adminEmail.toLowerCase() ? "admin" : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [state, setState] = useState<AuthState>({
@@ -37,48 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   });
 
-  const fetchRole = useCallback(
-    async (userId: string): Promise<"admin" | null> => {
-      try {
-        const timeout = new Promise<"timeout">((resolve) =>
-          setTimeout(() => resolve("timeout"), 8_000)
-        );
-        const query = supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", userId)
-          .single();
-
-        const result = await Promise.race([query, timeout]);
-        if (result === "timeout") {
-          console.warn("[AuthContext] fetchRole timed out");
-          return null;
-        }
-
-        const { data, error } = result;
-        if (error || !data) return null;
-        return data.role === "admin" ? "admin" : null;
-      } catch {
-        return null;
-      }
-    },
-    []
-  );
-
   useEffect(() => {
+    let cancelled = false;
+
     const initSession = async () => {
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-
-        if (session?.user) {
-          const role = await fetchRole(session.user.id);
-          setState({ user: session.user, role, isLoading: false });
-        } else {
-          setState({ user: null, role: null, isLoading: false });
-        }
-      } catch {
+        if (cancelled) return;
+        const user = session?.user ?? null;
+        setState({ user, role: resolveRole(user), isLoading: false });
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[AuthContext] getSession failed", err);
         setState({ user: null, role: null, isLoading: false });
       }
     };
@@ -87,19 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const role = await fetchRole(session.user.id);
-        setState({ user: session.user, role, isLoading: false });
-      } else {
-        setState({ user: null, role: null, isLoading: false });
-      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setState({ user, role: resolveRole(user), isLoading: false });
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
-  }, [fetchRole]);
+  }, []);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

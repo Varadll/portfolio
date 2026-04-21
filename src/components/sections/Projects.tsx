@@ -11,19 +11,20 @@ import type { Project } from "@/types/portfolio";
 export default function Projects({
   projects,
   showViewAll = true,
+  heading = "Featured Projects",
+  subtitle = "A selection of projects I've successfully delivered to clients.",
 }: {
   projects: Project[];
   showViewAll?: boolean;
+  heading?: string;
+  subtitle?: string;
 }) {
   if (projects.length === 0) return null;
 
   return (
     <AnimatedSection id="projects" className="py-20">
       <Container>
-        <SectionHeading
-          title="Featured Projects"
-          subtitle="A selection of projects I've built"
-        />
+        <SectionHeading title={heading} subtitle={subtitle} />
 
         <div className="grid gap-6 sm:grid-cols-2">
           {projects.map((project) => (

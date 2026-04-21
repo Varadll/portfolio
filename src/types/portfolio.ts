@@ -12,6 +12,13 @@ export interface Project {
   featured: boolean;
   sort_order: number;
   status: "draft" | "published";
+  completion_status: "completed" | "in_progress";
+  client_name: string | null;
+  client_logo_url: string | null;
+  testimonial_quote: string | null;
+  testimonial_author: string | null;
+  testimonial_author_role: string | null;
+  acknowledgement_html: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,16 +60,6 @@ export interface Certification {
   created_at: string;
 }
 
-export interface Skill {
-  id: string;
-  name: string;
-  category: "frontend" | "backend" | "database" | "tools" | "languages" | "other";
-  icon_name: string | null;
-  proficiency: number;
-  sort_order: number;
-  created_at: string;
-}
-
 export interface ContactMessage {
   id: string;
   name: string;
@@ -91,4 +88,11 @@ export interface SiteSettings {
     twitter: string | null;
   };
   resume_url: string | null;
+  home_sections: {
+    show_certifications: boolean;
+  };
+  projects_section: {
+    heading: string;
+    subtitle: string;
+  };
 }

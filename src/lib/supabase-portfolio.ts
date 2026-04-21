@@ -5,7 +5,6 @@ import type {
   Experience,
   Education,
   Certification,
-  Skill,
   ContactMessage,
   SiteSettings,
 } from "@/types/portfolio";
@@ -37,6 +36,13 @@ const DEFAULT_SETTINGS: SiteSettings = {
     twitter: null,
   },
   resume_url: null,
+  home_sections: {
+    show_certifications: true,
+  },
+  projects_section: {
+    heading: "Featured Projects",
+    subtitle: "A selection of projects I've successfully delivered to clients.",
+  },
 };
 
 export async function fetchSettings(): Promise<SiteSettings> {
@@ -44,7 +50,14 @@ export async function fetchSettings(): Promise<SiteSettings> {
     const { data, error } = await supabase
       .from("site_settings")
       .select("key, value")
-      .in("key", ["hero", "about", "social_links", "resume_url"]);
+      .in("key", [
+        "hero",
+        "about",
+        "social_links",
+        "resume_url",
+        "home_sections",
+        "projects_section",
+      ]);
 
     if (error || !data || data.length === 0) return DEFAULT_SETTINGS;
 
@@ -56,6 +69,16 @@ export async function fetchSettings(): Promise<SiteSettings> {
       if (row.key === "social_links")
         settings.social_links = { ...settings.social_links, ...row.value };
       if (row.key === "resume_url") settings.resume_url = row.value;
+      if (row.key === "home_sections")
+        settings.home_sections = {
+          ...settings.home_sections,
+          ...row.value,
+        };
+      if (row.key === "projects_section")
+        settings.projects_section = {
+          ...settings.projects_section,
+          ...row.value,
+        };
     }
     return settings;
   } catch {
@@ -234,34 +257,6 @@ export async function updateCertification(
 
 export async function deleteCertification(id: string) {
   await adminDb.remove("certifications", id);
-}
-
-// ── Skills ───────────────────────────────────────────────────────────────────
-
-export async function fetchSkills(): Promise<Skill[]> {
-  try {
-    const { data, error } = await supabase
-      .from("skills")
-      .select("*")
-      .order("sort_order", { ascending: true });
-
-    if (error) return [];
-    return (data ?? []) as Skill[];
-  } catch {
-    return [];
-  }
-}
-
-export async function createSkill(skill: Omit<Skill, "id" | "created_at">) {
-  return await adminDb.insert("skills", skill) as Skill;
-}
-
-export async function updateSkill(id: string, updates: Partial<Skill>) {
-  await adminDb.update("skills", id, updates);
-}
-
-export async function deleteSkill(id: string) {
-  await adminDb.remove("skills", id);
 }
 
 // ── Contact Messages ─────────────────────────────────────────────────────────

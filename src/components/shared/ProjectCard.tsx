@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import GithubIcon from "@/components/ui/GithubIcon";
 import Badge from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
 import type { Project } from "@/types/portfolio";
 
 export default function ProjectCard({ project }: { project: Project }) {
@@ -28,6 +29,20 @@ export default function ProjectCard({ project }: { project: Project }) {
             <div className="flex h-full items-center justify-center text-muted">
               <span className="text-4xl">🚀</span>
             </div>
+          )}
+          {project.completion_status && (
+            <span
+              className={cn(
+                "absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur",
+                project.completion_status === "completed"
+                  ? "bg-green-100/90 text-green-700 dark:bg-green-900/70 dark:text-green-300"
+                  : "bg-amber-100/90 text-amber-700 dark:bg-amber-900/70 dark:text-amber-300"
+              )}
+            >
+              {project.completion_status === "completed"
+                ? "Completed"
+                : "In Development"}
+            </span>
           )}
         </div>
       </Link>
@@ -54,6 +69,15 @@ export default function ProjectCard({ project }: { project: Project }) {
             <Badge variant="outline">+{project.tech_stack.length - 4}</Badge>
           )}
         </div>
+
+        {project.testimonial_quote && (
+          <p className="mt-3 text-xs italic text-muted line-clamp-2">
+            &ldquo;{project.testimonial_quote}&rdquo;
+            {project.testimonial_author && (
+              <span className="not-italic"> — {project.testimonial_author}</span>
+            )}
+          </p>
+        )}
 
         <div className="mt-4 flex gap-3">
           {project.live_url && (
