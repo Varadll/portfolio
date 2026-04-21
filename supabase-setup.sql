@@ -145,5 +145,16 @@ create policy "Public can read portfolio images"
   on storage.objects for select
   using (bucket_id = 'portfolio-images');
 
--- Allow service_role uploads (handled by admin API routes)
--- No policy needed — service_role bypasses RLS
+-- Allow the authenticated admin to upload directly from the browser.
+-- Only the portfolio owner can sign in, so this effectively grants them alone
+-- write access without routing file bytes through a serverless function.
+create policy "Authenticated users can upload portfolio images"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'portfolio-images');
+
+create policy "Authenticated users can update portfolio images"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'portfolio-images')
+  with check (bucket_id = 'portfolio-images');
