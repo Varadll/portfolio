@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Save, Loader2, Upload } from "lucide-react";
+import { Save, Loader2, Upload, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { fetchSettings, updateSetting } from "@/lib/supabase-portfolio";
 import { uploadAdmin } from "@/lib/admin-client";
@@ -165,16 +165,35 @@ export default function SettingsManager({ onMutate }: Props) {
               className="text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-secondary file:text-primary hover:file:bg-border"
             />
             {settings.hero.photo_url && (
-              <div className="relative h-16 w-16 overflow-hidden rounded-full border border-border">
-                <Image
-                  src={settings.hero.photo_url}
-                  alt="Profile"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+              <>
+                <div className="relative h-16 w-16 overflow-hidden rounded-full border border-border">
+                  <Image
+                    src={settings.hero.photo_url}
+                    alt="Profile"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSettings({
+                      ...settings,
+                      hero: { ...settings.hero, photo_url: null },
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 hover:border-red-200 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-900 transition-colors"
+                >
+                  <Trash2 size={14} /> Remove
+                </button>
+              </>
             )}
           </div>
+          {settings.hero.photo_url && (
+            <p className="mt-1 text-xs text-muted">
+              Click Remove to clear the photo, then Save All Settings to apply.
+            </p>
+          )}
         </div>
       </div>
 
