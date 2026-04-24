@@ -12,7 +12,11 @@ import GithubIcon from "@/components/ui/GithubIcon";
 import Container from "@/components/ui/Container";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import { fetchProjectBySlug, fetchProjects } from "@/lib/supabase-portfolio";
+import {
+  fetchProjectBySlug,
+  fetchProjects,
+  fetchTestimonialsByProject,
+} from "@/lib/supabase-portfolio";
 
 export const revalidate = 3600;
 
@@ -45,7 +49,10 @@ export default async function ProjectPage({
   const project = await fetchProjectBySlug(slug);
   if (!project) notFound();
 
-  const allProjects = await fetchProjects();
+  const [allProjects, testimonials] = await Promise.all([
+    fetchProjects(),
+    fetchTestimonialsByProject(project.id),
+  ]);
   const currentIndex = allProjects.findIndex((p) => p.slug === slug);
   const prevProject = currentIndex > 0 ? allProjects[currentIndex - 1] : null;
   const nextProject =
@@ -128,65 +135,67 @@ export default async function ProjectPage({
           />
         </div>
 
-        {/* Client + testimonial */}
-        {(project.client_name || project.testimonial_quote) && (
-          <div className="mt-12 max-w-3xl rounded-xl border border-border bg-card p-6 sm:p-8">
-            {project.client_name && (
-              <div className="flex items-center gap-4 mb-4">
-                {project.client_logo_url ? (
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-white">
-                    <Image
-                      src={project.client_logo_url}
-                      alt={`${project.client_name} logo`}
-                      fill
-                      className="object-contain p-1"
-                    />
+        {/* Client testimonials — full, readable stack */}
+        {testimonials.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold text-primary mb-6">
+              What clients say
+            </h2>
+            <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2">
+              {testimonials.map((t) => (
+                <div
+                  key={t.id}
+                  className="rounded-xl border border-border bg-card p-6 sm:p-7 flex flex-col"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    {t.client_logo_url ? (
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-white">
+                        <Image
+                          src={t.client_logo_url}
+                          alt={`${t.client_name} logo`}
+                          fill
+                          className="object-contain p-1"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-semibold text-primary">
+                        {t.client_name.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-muted">
+                        Client
+                      </p>
+                      <p className="text-base font-semibold text-primary">
+                        {t.client_name}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-semibold text-primary">
-                    {project.client_name.slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-muted">
-                    Client
-                  </p>
-                  <p className="text-base font-semibold text-primary">
-                    {project.client_name}
-                  </p>
-                </div>
-              </div>
-            )}
 
-            {project.testimonial_quote && (
-              <figure className="mt-2">
-                <Quote
-                  size={24}
-                  className="text-accent mb-2"
-                  aria-hidden="true"
-                />
-                <blockquote className="text-lg italic text-primary leading-relaxed">
-                  “{project.testimonial_quote}”
-                </blockquote>
-                {(project.testimonial_author ||
-                  project.testimonial_author_role) && (
-                  <figcaption className="mt-3 text-sm text-muted">
-                    {project.testimonial_author && (
-                      <span className="font-medium text-primary">
-                        {project.testimonial_author}
-                      </span>
+                  <figure className="flex-1 flex flex-col">
+                    <Quote
+                      size={24}
+                      className="text-accent mb-2"
+                      aria-hidden="true"
+                    />
+                    <blockquote className="text-base italic text-primary leading-relaxed flex-1">
+                      “{t.quote}”
+                    </blockquote>
+                    {(t.author || t.author_role) && (
+                      <figcaption className="mt-4 text-sm text-muted">
+                        {t.author && (
+                          <span className="font-medium text-primary">
+                            {t.author}
+                          </span>
+                        )}
+                        {t.author && t.author_role && <span> — </span>}
+                        {t.author_role && <span>{t.author_role}</span>}
+                      </figcaption>
                     )}
-                    {project.testimonial_author &&
-                      project.testimonial_author_role && (
-                        <span> — </span>
-                      )}
-                    {project.testimonial_author_role && (
-                      <span>{project.testimonial_author_role}</span>
-                    )}
-                  </figcaption>
-                )}
-              </figure>
-            )}
+                  </figure>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

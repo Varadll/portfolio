@@ -11,19 +11,26 @@ import {
   fetchExperience,
   fetchEducation,
   fetchCertifications,
+  fetchAllTestimonials,
 } from "@/lib/supabase-portfolio";
 
 export const revalidate = 3600; // Revalidate every hour
 
 export default async function Home() {
-  const [settings, projects, experience, education, certifications] =
+  const [settings, projects, experience, education, certifications, testimonials] =
     await Promise.all([
       fetchSettings(),
       fetchFeaturedProjects(),
       fetchExperience(),
       fetchEducation(),
       fetchCertifications(),
+      fetchAllTestimonials(),
     ]);
+
+  const reviewCounts = new Map<string, number>();
+  for (const t of testimonials) {
+    reviewCounts.set(t.project_id, (reviewCounts.get(t.project_id) ?? 0) + 1);
+  }
 
   return (
     <>
@@ -34,6 +41,7 @@ export default async function Home() {
       )}
       <Projects
         projects={projects}
+        reviewCounts={reviewCounts}
         heading={settings.projects_section.heading}
         subtitle={settings.projects_section.subtitle}
       />

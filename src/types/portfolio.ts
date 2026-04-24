@@ -13,14 +13,21 @@ export interface Project {
   sort_order: number;
   status: "draft" | "published";
   completion_status: "completed" | "in_progress";
-  client_name: string | null;
-  client_logo_url: string | null;
-  testimonial_quote: string | null;
-  testimonial_author: string | null;
-  testimonial_author_role: string | null;
   acknowledgement_html: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectTestimonial {
+  id: string;
+  project_id: string;
+  client_name: string;
+  client_logo_url: string | null;
+  quote: string;
+  author: string | null;
+  author_role: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface Experience {

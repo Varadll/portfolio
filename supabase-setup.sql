@@ -19,15 +19,26 @@ create table projects (
   sort_order integer default 0,
   status text default 'draft' check (status in ('draft', 'published')),
   completion_status text default 'completed' check (completion_status in ('completed', 'in_progress')),
-  client_name text,
-  client_logo_url text,
-  testimonial_quote text,
-  testimonial_author text,
-  testimonial_author_role text,
   acknowledgement_html text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- 1b. Project Testimonials (one project → many client reviews)
+create table project_testimonials (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  client_name text not null,
+  client_logo_url text,
+  quote text not null,
+  author text,
+  author_role text,
+  sort_order integer default 0,
+  created_at timestamptz default now()
+);
+
+create index project_testimonials_project_idx
+  on project_testimonials(project_id, sort_order);
 
 -- 2. Experience
 create table experience (

@@ -3,13 +3,18 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import GithubIcon from "@/components/ui/GithubIcon";
 import Badge from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import type { Project } from "@/types/portfolio";
 
-export default function ProjectCard({ project }: { project: Project }) {
+interface Props {
+  project: Project;
+  reviewCount?: number;
+}
+
+export default function ProjectCard({ project, reviewCount = 0 }: Props) {
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -70,13 +75,11 @@ export default function ProjectCard({ project }: { project: Project }) {
           )}
         </div>
 
-        {project.testimonial_quote && (
-          <p className="mt-3 text-xs italic text-muted line-clamp-2">
-            &ldquo;{project.testimonial_quote}&rdquo;
-            {project.testimonial_author && (
-              <span className="not-italic"> — {project.testimonial_author}</span>
-            )}
-          </p>
+        {reviewCount > 0 && (
+          <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
+            <Star size={12} className="fill-current" />
+            {reviewCount} client review{reviewCount === 1 ? "" : "s"}
+          </span>
         )}
 
         <div className="mt-4 flex gap-3">

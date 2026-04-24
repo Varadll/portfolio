@@ -20,9 +20,13 @@ import {
   createProject,
   updateProject,
   deleteProject,
+  fetchTestimonialsByProject,
+  createTestimonial,
+  updateTestimonial,
+  deleteTestimonial,
 } from "@/lib/supabase-portfolio";
 import { uploadAdmin } from "@/lib/admin-client";
-import type { Project } from "@/types/portfolio";
+import type { Project, ProjectTestimonial } from "@/types/portfolio";
 
 interface Props {
   onMutate: () => Promise<void>;
@@ -44,11 +48,6 @@ interface FormData {
   status: "draft" | "published";
   completion_status: "completed" | "in_progress";
   sort_order: number;
-  client_name: string;
-  client_logo_url: string;
-  testimonial_quote: string;
-  testimonial_author: string;
-  testimonial_author_role: string;
   acknowledgement_html: string;
 }
 
@@ -66,12 +65,25 @@ const EMPTY_FORM: FormData = {
   status: "published",
   completion_status: "completed",
   sort_order: 0,
+  acknowledgement_html: "",
+};
+
+interface TestimonialDraft {
+  client_name: string;
+  client_logo_url: string;
+  quote: string;
+  author: string;
+  author_role: string;
+  sort_order: number;
+}
+
+const EMPTY_TESTIMONIAL: TestimonialDraft = {
   client_name: "",
   client_logo_url: "",
-  testimonial_quote: "",
-  testimonial_author: "",
-  testimonial_author_role: "",
-  acknowledgement_html: "",
+  quote: "",
+  author: "",
+  author_role: "",
+  sort_order: 0,
 };
 
 export default function ProjectManager({ onMutate }: Props) {
@@ -81,6 +93,14 @@ export default function ProjectManager({ onMutate }: Props) {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Testimonial list editor state (only active when editingId is set)
+  const [testimonials, setTestimonials] = useState<ProjectTestimonial[]>([]);
+  const [testimonialsLoading, setTestimonialsLoading] = useState(false);
+  const [tDraft, setTDraft] = useState<TestimonialDraft>(EMPTY_TESTIMONIAL);
+  const [tEditingId, setTEditingId] = useState<string | null>(null);
+  const [tShowForm, setTShowForm] = useState(false);
+  const [tSaving, setTSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,9 +117,24 @@ export default function ProjectManager({ onMutate }: Props) {
     load();
   }, [load]);
 
+  const loadTestimonials = useCallback(async (projectId: string) => {
+    setTestimonialsLoading(true);
+    try {
+      const data = await fetchTestimonialsByProject(projectId);
+      setTestimonials(data);
+    } catch (e) {
+      console.error(e);
+    }
+    setTestimonialsLoading(false);
+  }, []);
+
   const openCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setTestimonials([]);
+    setTDraft(EMPTY_TESTIMONIAL);
+    setTEditingId(null);
+    setTShowForm(false);
     setViewMode("form");
   };
 
@@ -119,13 +154,12 @@ export default function ProjectManager({ onMutate }: Props) {
       status: p.status,
       completion_status: p.completion_status || "completed",
       sort_order: p.sort_order,
-      client_name: p.client_name || "",
-      client_logo_url: p.client_logo_url || "",
-      testimonial_quote: p.testimonial_quote || "",
-      testimonial_author: p.testimonial_author || "",
-      testimonial_author_role: p.testimonial_author_role || "",
       acknowledgement_html: p.acknowledgement_html || "",
     });
+    setTDraft(EMPTY_TESTIMONIAL);
+    setTEditingId(null);
+    setTShowForm(false);
+    loadTestimonials(p.id);
     setViewMode("form");
   };
 
@@ -152,11 +186,6 @@ export default function ProjectManager({ onMutate }: Props) {
         status: form.status,
         completion_status: form.completion_status,
         sort_order: form.sort_order,
-        client_name: form.client_name || null,
-        client_logo_url: form.client_logo_url || null,
-        testimonial_quote: form.testimonial_quote || null,
-        testimonial_author: form.testimonial_author || null,
-        testimonial_author_role: form.testimonial_author_role || null,
         acknowledgement_html: form.acknowledgement_html || null,
       };
 
@@ -202,20 +231,88 @@ export default function ProjectManager({ onMutate }: Props) {
     }
   };
 
-  const handleClientLogoUpload = async (
+  const handleTLogoUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const publicUrl = await uploadAdmin(file, "client-logo");
-      setForm((f) => ({ ...f, client_logo_url: publicUrl }));
+      setTDraft((d) => ({ ...d, client_logo_url: publicUrl }));
     } catch (err) {
       console.error("[ProjectManager] client logo upload failed", err);
       alert(
         "Upload failed: " +
           (err instanceof Error ? err.message : "Unknown error")
       );
+    }
+  };
+
+  const openTestimonialAdd = () => {
+    setTEditingId(null);
+    setTDraft({
+      ...EMPTY_TESTIMONIAL,
+      sort_order: testimonials.length,
+    });
+    setTShowForm(true);
+  };
+
+  const openTestimonialEdit = (t: ProjectTestimonial) => {
+    setTEditingId(t.id);
+    setTDraft({
+      client_name: t.client_name,
+      client_logo_url: t.client_logo_url || "",
+      quote: t.quote,
+      author: t.author || "",
+      author_role: t.author_role || "",
+      sort_order: t.sort_order,
+    });
+    setTShowForm(true);
+  };
+
+  const handleTestimonialSave = async () => {
+    if (!editingId) return;
+    if (!tDraft.client_name.trim() || !tDraft.quote.trim()) {
+      alert("Client name and quote are required");
+      return;
+    }
+    setTSaving(true);
+    try {
+      const payload = {
+        project_id: editingId,
+        client_name: tDraft.client_name.trim(),
+        client_logo_url: tDraft.client_logo_url || null,
+        quote: tDraft.quote.trim(),
+        author: tDraft.author.trim() || null,
+        author_role: tDraft.author_role.trim() || null,
+        sort_order: tDraft.sort_order,
+      };
+      if (tEditingId) {
+        await updateTestimonial(tEditingId, payload);
+      } else {
+        await createTestimonial(payload);
+      }
+      await loadTestimonials(editingId);
+      await onMutate();
+      setTShowForm(false);
+      setTEditingId(null);
+      setTDraft(EMPTY_TESTIMONIAL);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save testimonial");
+    }
+    setTSaving(false);
+  };
+
+  const handleTestimonialDelete = async (id: string) => {
+    if (!editingId) return;
+    if (!confirm("Delete this testimonial?")) return;
+    try {
+      await deleteTestimonial(id);
+      await loadTestimonials(editingId);
+      await onMutate();
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -455,123 +552,22 @@ export default function ProjectManager({ onMutate }: Props) {
             </p>
           </div>
 
-          <div className="pt-6 border-t border-border space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
-              Client &amp; Testimonial
-            </h3>
-            <p className="text-xs text-muted">
-              Optional. Shown on the project detail page. Leave blank to hide.
-            </p>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Client Name
-                </label>
-                <input
-                  value={form.client_name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, client_name: e.target.value }))
-                  }
-                  placeholder="Acme Inc."
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Client Logo
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleClientLogoUpload}
-                    className="text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-secondary file:text-primary hover:file:bg-border"
-                  />
-                  {form.client_logo_url && (
-                    <div className="relative h-10 w-10 overflow-hidden rounded border border-border bg-white">
-                      <Image
-                        src={form.client_logo_url}
-                        alt="Client logo"
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">
-                Testimonial Quote
-              </label>
-              <textarea
-                rows={3}
-                value={form.testimonial_quote}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    testimonial_quote: e.target.value,
-                  }))
-                }
-                placeholder="Their work exceeded our expectations…"
-                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent resize-none"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Testimonial Author
-                </label>
-                <input
-                  value={form.testimonial_author}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      testimonial_author: e.target.value,
-                    }))
-                  }
-                  placeholder="Jane Doe"
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Author Role
-                </label>
-                <input
-                  value={form.testimonial_author_role}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      testimonial_author_role: e.target.value,
-                    }))
-                  }
-                  placeholder="CEO, Acme Inc."
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">
-                Acknowledgement (HTML)
-              </label>
-              <textarea
-                rows={4}
-                value={form.acknowledgement_html}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    acknowledgement_html: e.target.value,
-                  }))
-                }
-                placeholder="<p>Thanks to the team at … for…</p>"
-                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary font-mono focus:border-accent focus:ring-1 focus:ring-accent resize-none"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-primary mb-1">
+              Acknowledgement (HTML)
+            </label>
+            <textarea
+              rows={4}
+              value={form.acknowledgement_html}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  acknowledgement_html: e.target.value,
+                }))
+              }
+              placeholder="<p>Thanks to the team at … for…</p>"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary font-mono focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+            />
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -586,6 +582,247 @@ export default function ProjectManager({ onMutate }: Props) {
             <Button variant="ghost" onClick={() => setViewMode("list")}>
               Cancel
             </Button>
+          </div>
+
+          {/* Testimonials — list editor (only for saved projects) */}
+          <div className="pt-8 mt-4 border-t border-border space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">
+                Client Testimonials
+              </h3>
+              <p className="text-xs text-muted mt-1">
+                Add one testimonial per client/shop. Shown as a stack on the
+                project detail page and summarised as a review-count pill on
+                cards.
+              </p>
+            </div>
+
+            {!editingId ? (
+              <p className="text-sm text-muted rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+                Save the project first, then edit it to add testimonials.
+              </p>
+            ) : testimonialsLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-accent" />
+              </div>
+            ) : (
+              <>
+                {testimonials.length > 0 && (
+                  <div className="space-y-2">
+                    {testimonials.map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
+                      >
+                        {t.client_logo_url && (
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-border bg-white">
+                            <Image
+                              src={t.client_logo_url}
+                              alt={t.client_name}
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-primary truncate">
+                              {t.client_name}
+                            </p>
+                            <span className="text-xs text-muted shrink-0">
+                              #{t.sort_order}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted line-clamp-2 mt-0.5">
+                            {t.quote}
+                          </p>
+                          {(t.author || t.author_role) && (
+                            <p className="text-xs text-muted mt-1">
+                              — {t.author}
+                              {t.author && t.author_role ? ", " : ""}
+                              {t.author_role}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => openTestimonialEdit(t)}
+                            className="p-1.5 text-muted hover:text-primary rounded-md hover:bg-secondary"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleTestimonialDelete(t.id)}
+                            className="p-1.5 text-muted hover:text-red-500 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!tShowForm ? (
+                  <Button size="sm" variant="ghost" onClick={openTestimonialAdd}>
+                    <Plus size={14} /> Add testimonial
+                  </Button>
+                ) : (
+                  <div className="rounded-lg border border-border bg-secondary/40 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-primary">
+                        {tEditingId ? "Edit testimonial" : "New testimonial"}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setTShowForm(false);
+                          setTEditingId(null);
+                          setTDraft(EMPTY_TESTIMONIAL);
+                        }}
+                        className="text-muted hover:text-primary"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-primary mb-1">
+                          Client Name *
+                        </label>
+                        <input
+                          value={tDraft.client_name}
+                          onChange={(e) =>
+                            setTDraft((d) => ({
+                              ...d,
+                              client_name: e.target.value,
+                            }))
+                          }
+                          placeholder="Acme Inc."
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-primary mb-1">
+                          Sort Order
+                        </label>
+                        <input
+                          type="number"
+                          value={tDraft.sort_order}
+                          onChange={(e) =>
+                            setTDraft((d) => ({
+                              ...d,
+                              sort_order: parseInt(e.target.value) || 0,
+                            }))
+                          }
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-primary mb-1">
+                        Client Logo
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleTLogoUpload}
+                          className="text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-secondary file:text-primary hover:file:bg-border"
+                        />
+                        {tDraft.client_logo_url && (
+                          <div className="relative h-10 w-10 overflow-hidden rounded border border-border bg-white">
+                            <Image
+                              src={tDraft.client_logo_url}
+                              alt="Client logo"
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-primary mb-1">
+                        Quote *
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={tDraft.quote}
+                        onChange={(e) =>
+                          setTDraft((d) => ({ ...d, quote: e.target.value }))
+                        }
+                        placeholder="Their work exceeded our expectations…"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent resize-none"
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-primary mb-1">
+                          Author
+                        </label>
+                        <input
+                          value={tDraft.author}
+                          onChange={(e) =>
+                            setTDraft((d) => ({
+                              ...d,
+                              author: e.target.value,
+                            }))
+                          }
+                          placeholder="Jane Doe"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-primary mb-1">
+                          Author Role
+                        </label>
+                        <input
+                          value={tDraft.author_role}
+                          onChange={(e) =>
+                            setTDraft((d) => ({
+                              ...d,
+                              author_role: e.target.value,
+                            }))
+                          }
+                          placeholder="Owner, Acme Shop"
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        onClick={handleTestimonialSave}
+                        disabled={tSaving}
+                      >
+                        {tSaving ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Save size={14} />
+                        )}
+                        {tEditingId ? "Update" : "Add"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setTShowForm(false);
+                          setTEditingId(null);
+                          setTDraft(EMPTY_TESTIMONIAL);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

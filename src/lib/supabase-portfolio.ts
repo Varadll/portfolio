@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { adminDb } from "./admin-client";
 import type {
   Project,
+  ProjectTestimonial,
   Experience,
   Education,
   Certification,
@@ -158,6 +159,59 @@ export async function updateProject(id: string, updates: Partial<Project>) {
 
 export async function deleteProject(id: string) {
   await adminDb.remove("projects", id);
+}
+
+// ── Project Testimonials ─────────────────────────────────────────────────────
+
+export async function fetchTestimonialsByProject(
+  projectId: string
+): Promise<ProjectTestimonial[]> {
+  try {
+    const { data, error } = await supabase
+      .from("project_testimonials")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true });
+
+    if (error) return [];
+    return (data ?? []) as ProjectTestimonial[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAllTestimonials(): Promise<ProjectTestimonial[]> {
+  try {
+    const { data, error } = await supabase
+      .from("project_testimonials")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (error) return [];
+    return (data ?? []) as ProjectTestimonial[];
+  } catch {
+    return [];
+  }
+}
+
+export async function createTestimonial(
+  t: Omit<ProjectTestimonial, "id" | "created_at">
+) {
+  return (await adminDb.insert(
+    "project_testimonials",
+    t
+  )) as ProjectTestimonial;
+}
+
+export async function updateTestimonial(
+  id: string,
+  updates: Partial<ProjectTestimonial>
+) {
+  await adminDb.update("project_testimonials", id, updates);
+}
+
+export async function deleteTestimonial(id: string) {
+  await adminDb.remove("project_testimonials", id);
 }
 
 // ── Experience ───────────────────────────────────────────────────────────────
