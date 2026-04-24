@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import Container from "@/components/ui/Container";
 import SectionHeading from "@/components/ui/SectionHeading";
 import ProjectCard from "@/components/shared/ProjectCard";
-import { fetchProjects } from "@/lib/supabase-portfolio";
+import { fetchProjects, fetchAllTestimonials } from "@/lib/supabase-portfolio";
 
 export const revalidate = 3600;
 
@@ -13,7 +13,15 @@ export const metadata = {
 };
 
 export default async function ProjectsListPage() {
-  const projects = await fetchProjects();
+  const [projects, testimonials] = await Promise.all([
+    fetchProjects(),
+    fetchAllTestimonials(),
+  ]);
+
+  const reviewCounts = new Map<string, number>();
+  for (const t of testimonials) {
+    reviewCounts.set(t.project_id, (reviewCounts.get(t.project_id) ?? 0) + 1);
+  }
 
   return (
     <div className="py-20">
@@ -35,7 +43,11 @@ export default async function ProjectsListPage() {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                reviewCount={reviewCounts.get(project.id) ?? 0}
+              />
             ))}
           </div>
         )}
